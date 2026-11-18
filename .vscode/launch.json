@@ -1,0 +1,71 @@
+// F5 never runs the extension inside your own VS Code profile.
+//
+// A plain `extensionHost` launch opens the Extension Development Host window inside the VS Code process you are
+// already running, so `--user-data-dir` / `--extensions-dir` / HOME are silently ignored and the extension would
+// toggle `chat.tools.global.autoApprove` in your REAL user settings (application-scoped settings are shared by all
+// profiles, so `--profile-temp` does not help either). Instead, "Run Extension" starts a separate, downloaded VS Code
+// via `scripts/uat.mjs --dev` with `--user-data-dir=.vscode-test/dev-profile`,
+// `--extensions-dir=.vscode-test/dev-extensions`, `--disable-extensions`, a temp HOME and `--locale=en`, then attaches
+// the debugger to its extension host on port 9333.
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Dev Host: launch isolated VS Code",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/uat.mjs",
+      "args": ["--dev", "--inspect-port", "9333"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": false,
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": { "hidden": true }
+    },
+    {
+      "name": "Dev Host: attach to extension host",
+      "type": "node",
+      "request": "attach",
+      "port": 9333,
+      // Covers the first-run VS Code download; js-debug keeps retrying until the extension host is listening.
+      "timeout": 180000,
+      "continueOnAttach": true,
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": { "hidden": true }
+    },
+    {
+      // Runs the `integration` label of .vscode-test.mjs (isolated dirs, temp HOME, --locale=en) in a downloaded
+      // VS Code. Mocha output appears in the terminal.
+      "name": "Extension Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/@vscode/test-cli/out/bin.mjs",
+      "args": ["--label", "integration"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": false,
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "npm: pretest:integration"
+    },
+    {
+      "name": "Unit Tests (Vitest)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Run Extension",
+      "configurations": ["Dev Host: launch isolated VS Code", "Dev Host: attach to extension host"],
+      "preLaunchTask": "npm: watch",
+      "stopAll": true
+    }
+  ]
+}

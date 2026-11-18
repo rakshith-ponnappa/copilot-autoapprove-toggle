@@ -1,0 +1,88 @@
+name: Bug report
+description: Something about the auto-approve toggle doesn't work as documented.
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! **Security issues** (e.g. a way to bypass VS Code's approval prompts or organization
+        policy) must NOT be filed here — use a private security advisory (see SECURITY.md).
+
+        Please don't paste secrets, tokens or full settings files.
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+      placeholder: '0.1.0'
+    validations:
+      required: true
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+      description: Help › About (or `code --version`) — include the commit if possible.
+      placeholder: '1.106.0'
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: window
+    attributes:
+      label: Window type
+      options: [Local, Remote - SSH, WSL, Dev Container, Codespaces, Other remote]
+    validations:
+      required: true
+  - type: dropdown
+    id: policy
+    attributes:
+      label: Is the machine or Copilot account managed by an organization policy?
+      options: ['No', 'Yes', 'Not sure']
+    validations:
+      required: true
+  - type: input
+    id: status-bar
+    attributes:
+      label: What does the status bar item show?
+      placeholder: 'e.g. "Auto-Approve: Off", "Auto-Approve: Managed", "Auto-Approve: 2 tools"'
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log output
+      description: 'Run **Copilot Auto-Approve: Show Log** and paste the relevant lines (it never contains setting values).'
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: This is not a security vulnerability (those go to a private advisory).
+          required: true

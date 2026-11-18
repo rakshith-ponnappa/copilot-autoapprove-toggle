@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest an improvement to the auto-approve toggle.
+labels: [enhancement, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This extension only switches VS Code's own `chat.tools.global.autoApprove` setting. By design it will never
+        bypass or auto-answer VS Code's approval prompts, write VS Code's internal storage, or work around
+        organization policy — requests in that direction will be declined.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: persona
+    attributes:
+      label: Who benefits most?
+      options: [Individual developer, Team lead, Admin / IT, Accessibility / assistive-tech user, Other]
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: The request does not require bypassing VS Code's safety prompts or organization policy.
+          required: true

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/rakshith-ponnappa/copilot-autoapprove-toggle/security/advisories/new
+    about: Never file security issues publicly. Use a private security advisory — see SECURITY.md.
+  - name: VS Code / GitHub Copilot Chat issues
+    url: https://github.com/microsoft/vscode/issues
+    about: Problems with VS Code's own auto-approve behaviour or prompts belong upstream.

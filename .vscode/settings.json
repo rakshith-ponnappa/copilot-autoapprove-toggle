@@ -1,0 +1,35 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.tsc.autoDetect": "off",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.useFlatConfig": true,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.exclude": {
+    "out": false,
+    "dist": false
+  },
+  "search.exclude": {
+    "out": true,
+    "dist": true,
+    "artifacts": true,
+    "coverage": true,
+    "reports": true,
+    ".vscode-test": true,
+    ".uat": true,
+    ".stryker-tmp": true,
+    "test-results": true,
+    "playwright-report": true
+  },
+  "files.watcherExclude": {
+    "**/.vscode-test/**": true,
+    "**/.uat/**": true,
+    "**/.stryker-tmp/**": true
+  }
+}

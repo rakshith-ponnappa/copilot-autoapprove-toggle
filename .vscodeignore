@@ -1,0 +1,16 @@
+# Allow-list packaging: exclude everything, then re-include what ships.
+# vsce always adds package.json, and README/CHANGELOG/LICENSE when present.
+**
+
+!dist/extension.js
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!LICENSE.md
+!LICENSE.txt
+!SECURITY.md
+!images/**
+
+# Never ship source maps, even if a dev build left them behind.
+**/*.map

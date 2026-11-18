@@ -1,0 +1,114 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "npm: watch",
+      "type": "npm",
+      "script": "watch",
+      "detail": "esbuild --watch → dist/extension.js (dev build with source maps)",
+      "group": { "kind": "build", "isDefault": true },
+      "isBackground": true,
+      "presentation": { "reveal": "never", "group": "watch" },
+      "problemMatcher": {
+        "owner": "esbuild",
+        "source": "esbuild",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        // Matches the lines printed by the problem-matcher plugin in esbuild.mjs:
+        //   ✘ [ERROR] <message>
+        //       src/file.ts:12:4:
+        "pattern": [
+          { "regexp": "^✘ \\[ERROR\\] (.*)$", "message": 1 },
+          { "regexp": "^\\s+(.+?):(\\d+):(\\d+):$", "file": 1, "line": 2, "column": 3 }
+        ],
+        "background": {
+          "activeBegin": "^\\[watch\\] build started",
+          "activeEnd": "^\\[watch\\] build finished"
+        }
+      }
+    },
+    {
+      "label": "npm: compile",
+      "type": "npm",
+      "script": "compile",
+      "detail": "One-off dev build with source maps",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: build",
+      "type": "npm",
+      "script": "build",
+      "detail": "Production build (minified, no source maps)",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: typecheck",
+      "type": "npm",
+      "script": "typecheck",
+      "group": "build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "npm: lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": "$eslint-stylish"
+    },
+    {
+      "label": "npm: format:check",
+      "type": "npm",
+      "script": "format:check",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: check",
+      "type": "npm",
+      "script": "check",
+      "detail": "typecheck + lint + format:check + unit tests (same as CI)",
+      "problemMatcher": ["$tsc", "$eslint-stylish"]
+    },
+    {
+      "label": "npm: test:unit",
+      "type": "npm",
+      "script": "test:unit",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: pretest:integration",
+      "type": "npm",
+      "script": "pretest:integration",
+      "detail": "Dev build + compile mocha suites to out/",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "npm: test:integration",
+      "type": "npm",
+      "script": "test:integration",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: test:e2e",
+      "type": "npm",
+      "script": "test:e2e",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: package",
+      "type": "npm",
+      "script": "package",
+      "detail": "Build the VSIX into artifacts/",
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: uat",
+      "type": "npm",
+      "script": "uat",
+      "detail": "Live user testing sandbox (.uat/) — follow docs/UAT.md",
+      "problemMatcher": []
+    }
+  ]
+}

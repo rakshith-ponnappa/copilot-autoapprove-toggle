@@ -1,0 +1,285 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  # release.yml runs the full gate (checks, integration, policy, e2e, package) before publishing.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  # The `ci-` prefix keeps this group distinct from the caller's (release.yml) group when run via workflow_call;
+  # concurrency groups are case-insensitive, and sharing one would deadlock the release.
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  FORCE_COLOR: '1'
+
+jobs:
+  checks:
+    name: Checks (safety grep, typecheck, lint, format, unit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Safety grep — no VS Code test-mode context key in src/ or test/
+        run: |
+          for dir in src test; do
+            if [ ! -d "$dir" ]; then
+              echo "::error::Expected directory '$dir' is missing."
+              exit 1
+            fi
+          done
+          status=0
+          grep -rnF 'autoApprove.testMode' src test || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "::error::'autoApprove.testMode' found above. Never set VS Code's test-mode context key (SPEC §1 rule 1)."
+            exit 1
+          elif [ "$status" -ne 1 ]; then
+            echo "::error::grep failed with exit code $status."
+            exit 1
+          fi
+          echo "OK: no occurrences."
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test:unit
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  integration:
+    name: Integration (${{ matrix.os }}, VS Code ${{ matrix.vscode }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        vscode: [stable]
+        include:
+          - os: ubuntu-latest
+            vscode: 1.104.0
+    env:
+      VSCODE_TEST_VERSION: ${{ matrix.vscode }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Compute VS Code cache week
+        id: week
+        shell: bash
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache VS Code downloads
+        uses: actions/cache@v4
+        with:
+          path: .vscode-test/vscode-*
+          # Weekly key and NO restore-keys: a restored cache plus a new stable download would be re-saved under the
+          # next key, growing the cache without bound. Worst case is one fresh download per week.
+          key: vscode-${{ runner.os }}-${{ runner.arch }}-${{ matrix.vscode }}-${{ steps.week.outputs.week }}
+
+      - name: Integration tests (Linux, xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:integration
+
+      - name: Integration tests
+        if: runner.os != 'Linux'
+        run: npm run test:integration
+
+  policy:
+    name: Policy (Linux, /etc/vscode/policy.json)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VSCODE_TEST_VERSION: stable
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Compute VS Code cache week
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache VS Code downloads
+        uses: actions/cache@v4
+        with:
+          path: .vscode-test/vscode-*
+          key: vscode-${{ runner.os }}-${{ runner.arch }}-stable-${{ steps.week.outputs.week }}
+
+      - name: Write canary policy (ChatToolsAutoApprove = true)
+        run: |
+          sudo mkdir -p /etc/vscode
+          echo '{"ChatToolsAutoApprove": true}' | sudo tee /etc/vscode/policy.json > /dev/null
+          sudo chown root:root /etc/vscode/policy.json
+          sudo chmod 644 /etc/vscode/policy.json
+          cat /etc/vscode/policy.json
+
+      - name: Policy tests — canary (proves the policy file is applied)
+        run: xvfb-run -a npm run test:policy
+        env:
+          POLICY_PHASE: canary
+
+      - name: Write locked policy (ChatToolsAutoApprove = false)
+        run: |
+          echo '{"ChatToolsAutoApprove": false}' | sudo tee /etc/vscode/policy.json > /dev/null
+          sudo chown root:root /etc/vscode/policy.json
+          sudo chmod 644 /etc/vscode/policy.json
+          cat /etc/vscode/policy.json
+
+      - name: Policy tests — locked
+        run: xvfb-run -a npm run test:policy
+        env:
+          POLICY_PHASE: locked
+
+      - name: Remove policy file
+        if: always()
+        run: sudo rm -f /etc/vscode/policy.json
+
+  e2e:
+    name: E2E (Playwright, Linux)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Compute VS Code cache week
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache VS Code downloads
+        uses: actions/cache@v4
+        with:
+          path: .vscode-test/vscode-*
+          key: vscode-${{ runner.os }}-${{ runner.arch }}-stable-${{ steps.week.outputs.week }}
+
+      # `vsce package --out artifacts/` writes a file named "artifacts" if the directory is missing.
+      - run: mkdir -p artifacts
+
+      - name: E2E tests (xvfb)
+        run: xvfb-run -a npm run test:e2e -- --fail-on-flaky-tests
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  package:
+    name: Package VSIX
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # `vsce package --out artifacts/` writes a file named "artifacts" if the directory is missing.
+      - run: mkdir -p artifacts
+
+      - run: npm run package
+
+      - name: VSIX static test
+        run: npx vitest run test/unit/static/vsix.test.ts
+        env:
+          REQUIRE_VSIX: '1'
+
+      - name: Dist safety static test
+        run: npx vitest run test/unit/static/safety.test.ts
+        env:
+          REQUIRE_DIST: '1'
+
+      - name: Verify VSIX contents (allow-list)
+        run: |
+          expected="$(printf '%s\n' CHANGELOG.md LICENSE README.md SECURITY.md dist/extension.js package.json | sort)"
+          actual="$(npx vsce ls --no-dependencies | sed 's/\r$//' | sort)"
+          echo "$actual"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::VSIX file list differs from the allow-list (.vscodeignore)."
+            diff <(echo "$expected") <(echo "$actual") || true
+            exit 1
+          fi
+          shopt -s nullglob
+          vsix=(artifacts/*.vsix)
+          if [ "${#vsix[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one VSIX in artifacts/, found ${#vsix[@]}."
+            exit 1
+          fi
+          unexpected="$(unzip -Z1 "${vsix[0]}" | grep '^extension/' | grep -vxE 'extension/(package\.json|readme\.md|changelog\.md|LICENSE(\.txt)?|SECURITY\.md|dist/extension\.js)' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "::error::Unexpected files inside ${vsix[0]}:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: artifacts/*.vsix
+          if-no-files-found: error
+          retention-days: 30

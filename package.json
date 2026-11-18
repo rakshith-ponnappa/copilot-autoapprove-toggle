@@ -1,0 +1,161 @@
+{
+  "name": "copilot-autoapprove-toggle",
+  "displayName": "Copilot Auto-Approve Toggle",
+  "description": "One-click status bar switch for VS Code's global chat tool auto-approve (chat.tools.global.autoApprove). Respects organization policy and VS Code's own safety prompts.",
+  "version": "0.1.0",
+  "publisher": "rakshith-ponnappa",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rakshith-ponnappa/copilot-autoapprove-toggle.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rakshith-ponnappa/copilot-autoapprove-toggle/issues"
+  },
+  "homepage": "https://github.com/rakshith-ponnappa/copilot-autoapprove-toggle#readme",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Other",
+    "AI",
+    "Chat"
+  ],
+  "keywords": [
+    "copilot",
+    "chat",
+    "agent",
+    "auto approve",
+    "tools",
+    "yolo"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "copilotAutoApproveToggle.toggle",
+        "title": "Toggle Auto-Approve for All Tools",
+        "category": "Copilot Auto-Approve"
+      },
+      {
+        "command": "copilotAutoApproveToggle.enable",
+        "title": "Turn On Auto-Approve for All Tools",
+        "category": "Copilot Auto-Approve"
+      },
+      {
+        "command": "copilotAutoApproveToggle.disable",
+        "title": "Turn Off Auto-Approve for All Tools",
+        "category": "Copilot Auto-Approve"
+      },
+      {
+        "command": "copilotAutoApproveToggle.openSetting",
+        "title": "Open Auto-Approve Setting",
+        "category": "Copilot Auto-Approve"
+      },
+      {
+        "command": "copilotAutoApproveToggle.showLog",
+        "title": "Show Log",
+        "category": "Copilot Auto-Approve"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "copilotAutoApproveToggle.enable",
+          "when": "copilotAutoApproveToggle.mode != on && copilotAutoApproveToggle.mode != unsupported"
+        },
+        {
+          "command": "copilotAutoApproveToggle.disable",
+          "when": "copilotAutoApproveToggle.mode == on"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Copilot Auto-Approve Toggle",
+      "properties": {
+        "copilotAutoApproveToggle.confirmBeforeEnabling": {
+          "type": "string",
+          "enum": [
+            "firstTime",
+            "always",
+            "never"
+          ],
+          "enumDescriptions": [
+            "Show the risk warning the first time you turn auto-approve on from this extension.",
+            "Show the risk warning every time you turn auto-approve on.",
+            "Never show this extension's risk warning. VS Code's own opt-in prompt still applies."
+          ],
+          "default": "firstTime",
+          "scope": "application",
+          "description": "When to show this extension's risk warning before turning on global auto-approve."
+        },
+        "copilotAutoApproveToggle.showStatusBarItem": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Show the auto-approve toggle in the status bar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.mjs --production",
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:unit": "vitest run --coverage",
+    "compile-tests": "tsc -p tsconfig.test.json",
+    "pretest:integration": "npm run compile && npm run compile-tests",
+    "test:integration": "vscode-test --label integration --label integration-empty-window",
+    "pretest:policy": "npm run compile && npm run compile-tests",
+    "test:policy": "node test/policy/run.mjs",
+    "test": "npm run test:unit && npm run test:integration",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:unit",
+    "prepackage": "node -e \"require('node:fs').mkdirSync('artifacts',{recursive:true})\"",
+    "package": "vsce package --no-dependencies --out artifacts/",
+    "pretest:e2e": "node -e \"require('fs').mkdirSync('artifacts',{recursive:true})\" && npm run package",
+    "test:e2e": "playwright test --config test/e2e/playwright.config.ts",
+    "test:mutation": "stryker run",
+    "uat": "node scripts/uat.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/typescript-checker": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.19.43",
+    "@types/vscode": "~1.104.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.15.0",
+    "fast-check": "^4.10.2",
+    "globals": "^17.14.0",
+    "mocha": "^12.0.3",
+    "ovsx": "1.1.1",
+    "prettier": "^3.10.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^4.1.12"
+  }
+}

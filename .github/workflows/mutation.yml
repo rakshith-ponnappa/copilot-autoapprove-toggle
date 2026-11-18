@@ -1,0 +1,53 @@
+name: Mutation testing
+
+on:
+  schedule:
+    - cron: '17 3 * * 1' # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  stryker:
+    name: Stryker (src/core)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Fresh seed every run (reproduce locally with the printed FC_SEED); runs every *property*.test.ts under test/unit.
+      - name: Property tests (fast-check, 1000 runs, fresh seed)
+        env:
+          FC_SEED: ${{ github.run_id }}
+          FC_NUM_RUNS: '1000'
+        run: |
+          echo "FC_SEED=${FC_SEED} FC_NUM_RUNS=${FC_NUM_RUNS}"
+          echo "::notice::fast-check seed ${FC_SEED} — reproduce with FC_SEED=${FC_SEED} FC_NUM_RUNS=${FC_NUM_RUNS} npx vitest run property.test"
+          # One substring filter (vitest ORs positional filters, so adding `test/unit` would select every unit test);
+          # the vitest config already limits discovery to test/unit/**.
+          npx vitest run --testNamePattern=. property.test
+
+      - run: npm run test:mutation
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: reports/mutation/
+          if-no-files-found: warn
+          retention-days: 30

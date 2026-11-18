@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+artifacts/
+*.vsix
+
+# Test & coverage output
+coverage/
+reports/
+test-results/
+playwright-report/
+.stryker-tmp/
+
+# Isolated VS Code sandboxes (tests, F5 dev profile, UAT)
+.vscode-test/
+.uat/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log

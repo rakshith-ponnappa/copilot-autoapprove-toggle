@@ -1,0 +1,124 @@
+name: Release
+
+# Repository setup (Settings › Environments › `release`) — REQUIRED before the first tag:
+#   - "Required reviewers": at least one maintainer must approve every publish.
+#   - "Deployment branches and tags": selected tags only, pattern `v*`.
+#   - Store VSCE_PAT / OVSX_PAT as secrets of the `release` environment (not repository secrets).
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  verify-tag:
+    name: Verify tag matches package.json version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Compare tag and version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version v${version}."
+            exit 1
+          fi
+          echo "Releasing v${version}"
+
+  # Full CI gate: safety grep, typecheck, lint, format, unit + coverage, integration matrix, policy, e2e, and the
+  # allow-listed VSIX (uploaded as the `vsix` artifact of this run).
+  ci:
+    name: CI gate
+    needs: verify-tag
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  github-release:
+    name: GitHub Release
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: artifacts
+
+      - name: Create GitHub Release with the VSIX
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          prerelease=""
+          case "${GITHUB_REF_NAME}" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "${GITHUB_REF_NAME}" artifacts/*.vsix \
+            --verify-tag \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            ${prerelease}
+
+  publish:
+    name: Publish (Marketplace / Open VSX)
+    needs: github-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # No install scripts while publish tokens are in reach. (vsce only needs vsce-sign's binary for --sign-tool.)
+      - run: npm ci --ignore-scripts
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: artifacts
+
+      # Secrets are exposed only to the step that needs them; this step only reports whether each one is set.
+      - name: Detect publish targets
+        id: targets
+        env:
+          HAS_VSCE_PAT: ${{ secrets.VSCE_PAT != '' }}
+          HAS_OVSX_PAT: ${{ secrets.OVSX_PAT != '' }}
+        run: |
+          echo "vsce=${HAS_VSCE_PAT}" >> "$GITHUB_OUTPUT"
+          echo "ovsx=${HAS_OVSX_PAT}" >> "$GITHUB_OUTPUT"
+          [ "${HAS_VSCE_PAT}" = "true" ] || echo "::notice::VSCE_PAT not set — skipping Visual Studio Marketplace."
+          [ "${HAS_OVSX_PAT}" = "true" ] || echo "::notice::OVSX_PAT not set — skipping Open VSX."
+
+      - name: Publish to Visual Studio Marketplace
+        if: steps.targets.outputs.vsce == 'true'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx vsce publish --packagePath artifacts/*.vsix
+
+      - name: Publish to Open VSX
+        if: steps.targets.outputs.ovsx == 'true'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx ovsx publish artifacts/*.vsix

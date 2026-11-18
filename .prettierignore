@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+artifacts/
+coverage/
+reports/
+test-results/
+playwright-report/
+.vscode-test/
+.uat/
+.stryker-tmp/
+*.vsix
+package-lock.json
