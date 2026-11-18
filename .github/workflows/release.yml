@@ -55,7 +55,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: vsix
           path: artifacts
@@ -94,7 +94,7 @@ jobs:
       # No install scripts while publish tokens are in reach. (vsce only needs vsce-sign's binary for --sign-tool.)
       - run: npm ci --ignore-scripts
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: vsix
           path: artifacts
